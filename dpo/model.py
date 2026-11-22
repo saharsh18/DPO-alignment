@@ -103,17 +103,28 @@ def count_parameters(model: nn.Module) -> int:
 def load_base_model(pretrained_path: Optional[str] = None) -> TinyTransformerLM:
     """Initializes and returns the base SFT model.
 
-    If a weights file is available at pretrained_path, it loads it;
-    otherwise initializes with a fixed random seed.
+    If a weights file is available at checkpoints/base_model.pt or pretrained_path,
+    it loads it; otherwise trains a quick 300-step SFT model automatically so the
+    base model has the expected 50% polite / 50% rude baseline behavior.
     """
+    from pathlib import Path
     torch.manual_seed(42)
     model = TinyTransformerLM()
-    if pretrained_path:
+
+    default_ckpt = Path(__file__).resolve().parents[1] / "checkpoints" / "base_model.pt"
+    ckpt_path = pretrained_path if pretrained_path else (default_ckpt if default_ckpt.exists() else None)
+
+    if ckpt_path and Path(ckpt_path).exists():
         try:
-            state = torch.load(pretrained_path, map_location="cpu")
+            state = torch.load(ckpt_path, map_location="cpu")
             model.load_state_dict(state)
+            return model
         except Exception:
             pass
+
+    # Quick SFT pre-training to establish base model grammar & ~50/50 tone
+    from dpo.trainer import train_sft
+    train_sft(model, steps=300, log_every=300)
     return model
 
 

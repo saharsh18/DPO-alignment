@@ -28,6 +28,7 @@ from dpo.model import (
     bar,
 )
 from dpo.trainer import (
+    train_sft,
     dpo_step,
     ipo_step,
     train_dpo,
@@ -55,6 +56,7 @@ __all__ = [
     "generate",
     "show_token_logprobs",
     "bar",
+    "train_sft",
     "dpo_step",
     "ipo_step",
     "train_dpo",

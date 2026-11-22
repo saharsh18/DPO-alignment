@@ -17,6 +17,52 @@ from dpo.metrics import sequence_logprob, reward_metrics, token_kl
 from dpo.model import generate, TinyTransformerLM
 
 
+def train_sft(
+    model: torch.nn.Module,
+    steps: int = 300,
+    batch_size: int = 32,
+    lr: float = 0.003,
+    log_every: int = 100,
+) -> torch.nn.Module:
+    """Pre-trains the base transformer using Supervised Fine-Tuning (SFT).
+
+    Trains the model on neutral sentences and help desk chats (50% polite, 50% rude)
+    to teach it basic English grammar, request-reply task structure, and neutral tone.
+    """
+    from dpo.dataset import make_preference_pairs, encode_chat, VOCAB, PAD_ID
+    import torch.nn as nn
+
+    pairs = make_preference_pairs()
+    sft_texts = []
+    for i, p in enumerate(pairs):
+        reply = p["chosen"] if i % 2 == 0 else p["rejected"]
+        sft_texts.append((p["prompt"], reply))
+
+    chats = [encode_chat(p, r) for p, r in sft_texts]
+    max_len = max(len(c[0]) for c in chats)
+    input_ids = [tok + [PAD_ID] * (max_len - len(tok)) for tok, _ in chats]
+    input_tensor = torch.tensor(input_ids, dtype=torch.long)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    criterion = nn.CrossEntropyLoss(ignore_index=PAD_ID)
+
+    model.train()
+    for step in range(1, steps + 1):
+        idx = torch.randint(0, len(input_tensor), (batch_size,))
+        batch = input_tensor[idx]
+        logits = model(batch[:, :-1])
+        loss = criterion(logits.reshape(-1, len(VOCAB)), batch[:, 1:].reshape(-1))
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if step % log_every == 0 or step == steps:
+            print(f"SFT Step {step:3d}/{steps} | CrossEntropy Loss: {loss.item():.4f}")
+
+    return model
+
+
 def dpo_step(
     policy: torch.nn.Module,
     batch: Dict[str, torch.Tensor],
