@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiny-dpo"
+version = "0.1.0"
+description = "A clean, modular implementation of Direct Preference Optimization (DPO) and Identity Preference Optimization (IPO) from scratch."
+readme = "README.md"
+authors = [
+    { name = "Saharsh Saxena" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "numpy>=1.24.0",
+    "tqdm>=4.65.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "jupyter>=1.0.0"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
